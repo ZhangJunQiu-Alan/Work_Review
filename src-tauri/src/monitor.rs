@@ -163,6 +163,9 @@ pub fn is_browser_app(app_name: &str) -> bool {
         || app_lower.contains("safari")
         || app_lower.contains("arc")
         || app_lower.contains("orion")
+        || app_lower.contains("comet")
+        || app_lower.contains("wavebox")
+        || app_lower.contains("sidekick")
         || app_lower.contains("zen browser")
         || app_lower.contains("browser")
         || app_lower.contains("qq browser")
@@ -200,6 +203,9 @@ pub fn normalize_display_app_name(app_name: &str) -> String {
         "vivaldi" => "Vivaldi".to_string(),
         "chromium" => "Chromium".to_string(),
         "arc" => "Arc".to_string(),
+        "comet" => "Comet".to_string(),
+        "wavebox" => "Wavebox".to_string(),
+        "sidekick" => "Sidekick".to_string(),
         "zen browser" | "zen" => "Zen Browser".to_string(),
         "qqbrowser" | "qq browser" | "qq浏览器" => "QQ Browser".to_string(),
         "360se" | "360chrome" | "360 browser" | "360浏览器" => "360 Browser".to_string(),
@@ -1306,6 +1312,8 @@ mod tests {
         assert!(is_browser_app("chrome.exe"));
         assert!(is_browser_app("msedge.exe"));
         assert!(is_browser_app("Microsoft Edge"));
+        assert!(is_browser_app("Comet"));
+        assert!(is_browser_app("Wavebox"));
         assert!(is_browser_app("QQ Browser"));
         assert!(is_browser_app("360 Browser"));
         assert!(is_browser_app("Sogou Browser"));
@@ -1316,6 +1324,8 @@ mod tests {
     #[test]
     fn 归一化后的浏览器显示名仍能归类为浏览器() {
         assert_eq!(categorize_app("Microsoft Edge", "example.com"), "browser");
+        assert_eq!(categorize_app("Comet", "example.com"), "browser");
+        assert_eq!(categorize_app("Wavebox", "example.com"), "browser");
         assert_eq!(categorize_app("QQ Browser", "example.com"), "browser");
         assert_eq!(categorize_app("360 Browser", "example.com"), "browser");
         assert_eq!(categorize_app("Sogou Browser", "example.com"), "browser");
@@ -1429,6 +1439,22 @@ mod tests {
             "脚本编译失败: {}",
             String::from_utf8_lossy(&output.stderr)
         );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn comet和wavebox应映射到chromium风格脚本() {
+        let (comet_script, comet_name) =
+            super::browser_url_script_macos("comet").expect("Comet 应有 URL 脚本");
+        assert_eq!(comet_name, "Comet");
+        assert!(comet_script.contains(r#"tell application "Comet""#));
+        assert!(comet_script.contains("URL of active tab of front window"));
+
+        let (wavebox_script, wavebox_name) =
+            super::browser_url_script_macos("wavebox").expect("Wavebox 应有 URL 脚本");
+        assert_eq!(wavebox_name, "Wavebox");
+        assert!(wavebox_script.contains(r#"tell application "Wavebox""#));
+        assert!(wavebox_script.contains("URL of active tab of front window"));
     }
 
     #[cfg(target_os = "macos")]
@@ -1824,6 +1850,8 @@ fn normalize_electron_app_name(process_name: &str, window_title: &str) -> String
         ("vivaldi", "Vivaldi"),
         ("chromium", "Chromium"),
         ("orion", "Orion"),
+        ("comet", "Comet"),
+        ("wavebox", "Wavebox"),
         ("zen browser", "Zen Browser"),
         ("sidekick", "Sidekick"),
     ];
@@ -2024,6 +2052,28 @@ end tell"#,
     end if
 end tell"#,
             "Orion",
+        ))
+    } else if app_lower.contains("comet") {
+        Some((
+            r#"tell application "Comet"
+    if (count of windows) > 0 then
+        return URL of active tab of front window
+    else
+        return ""
+    end if
+end tell"#,
+            "Comet",
+        ))
+    } else if app_lower.contains("wavebox") {
+        Some((
+            r#"tell application "Wavebox"
+    if (count of windows) > 0 then
+        return URL of active tab of front window
+    else
+        return ""
+    end if
+end tell"#,
+            "Wavebox",
         ))
     } else if app_lower.contains("sidekick") {
         // Sidekick 基于 Chromium
@@ -2784,6 +2834,7 @@ pub fn categorize_app(app_name: &str, window_title: &str) -> String {
         || app_lower.contains("vivaldi")
         || app_lower.contains("chromium")
         || app_lower.contains("orion")
+        || app_lower.contains("comet")
         || app_lower.starts_with("zen")
         || app_lower.contains("sidekick")
         || app_lower.contains("wavebox")
